@@ -3,7 +3,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   const settings = [
-    { label: "multi_user_mode", value: "false" },
+    { label: "multi_user_mode", value: "true" },
     { label: "logo_filename", value: "anything-llm.png" },
   ];
 

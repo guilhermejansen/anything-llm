@@ -31,19 +31,17 @@ const { mcpServersEndpoints } = require("./endpoints/mcpServers");
 const { mobileEndpoints } = require("./endpoints/mobile");
 const { webPushEndpoints } = require("./endpoints/webPush");
 const { httpLogger } = require("./middleware/httpLogger");
+const { chatSetparSSO, ensureSetparDefaultMultiUserMode } = require("./utils/middleware/chatSetparSSO");
 const app = express();
 const apiRouter = express.Router();
 const FILE_LIMIT = "3GB";
 
 // Only log HTTP requests in development mode and if the ENABLE_HTTP_LOGGER environment variable is set to true
-if (
-  process.env.NODE_ENV === "development" &&
-  !!process.env.ENABLE_HTTP_LOGGER
-) {
+if (process.env.NODE_ENV === "development" && !!process.env.ENABLE_HTTP_LOGGER) {
   app.use(
     httpLogger({
       enableTimestamps: !!process.env.ENABLE_HTTP_LOGGER_TIMESTAMPS,
-    })
+    }),
   );
 }
 app.use(cors({ origin: true }));
@@ -53,13 +51,23 @@ app.use(
   bodyParser.urlencoded({
     limit: FILE_LIMIT,
     extended: true,
-  })
+  }),
 );
 
-if (!!process.env.ENABLE_HTTPS) {
+if (process.env.ENABLE_HTTPS) {
   bootSSL(app, process.env.SERVER_PORT || 3001);
 } else {
   require("@mintplex-labs/express-ws").default(app); // load WebSockets in non-SSL mode.
+}
+
+// Chat Setpar SSO - handle iframe authentication before any routes
+if (process.env.CHAT_SETPAR_JWT_SECRET) {
+  // Optionally force multi-user mode on boot for Setpar deployments
+  ensureSetparDefaultMultiUserMode().catch((error) => {
+    console.error("[ChatSetpar SSO] Failed to apply default multi-user mode:", error);
+  });
+
+  app.use(chatSetparSSO);
 }
 
 app.use("/api", apiRouter);
@@ -95,24 +103,28 @@ if (process.env.NODE_ENV !== "development") {
     express.static(path.resolve(__dirname, "public"), {
       extensions: ["js"],
       setHeaders: (res) => {
-        // Disable I-framing of entire site UI
         res.removeHeader("X-Powered-By");
-        res.setHeader("X-Frame-Options", "DENY");
+        const allowedOrigin = process.env.CHAT_SETPAR_ORIGIN;
+        if (allowedOrigin) {
+          res.setHeader("Content-Security-Policy", `frame-ancestors 'self' ${allowedOrigin}`);
+        } else {
+          res.setHeader("X-Frame-Options", "DENY");
+        }
       },
-    })
+    }),
   );
 
-  app.get("/robots.txt", function (_, response) {
+  app.get("/robots.txt", (_, response) => {
     response.type("text/plain");
     response.send("User-agent: *\nDisallow: /").end();
   });
 
-  app.get("/manifest.json", async function (_, response) {
+  app.get("/manifest.json", async (_, response) => {
     IndexPage.generateManifest(response);
     return;
   });
 
-  app.use("/", function (_, response) {
+  app.use("/", (_, response) => {
     IndexPage.generate(response);
     return;
   });
@@ -147,7 +159,7 @@ if (process.env.NODE_ENV !== "development") {
   });
 }
 
-app.all("*", function (_, response) {
+app.all("*", (_, response) => {
   response.sendStatus(404);
 });
 
