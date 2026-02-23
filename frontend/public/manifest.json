@@ -1,6 +1,6 @@
 {
-  "name": "AnythingLLM",
-  "short_name": "AnythingLLM",
+  "name": "SetChat",
+  "short_name": "SetChat",
   "display": "standalone",
   "orientation": "portrait",
   "start_url": "/",

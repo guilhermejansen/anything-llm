@@ -27,8 +27,8 @@ class MetaGenerator {
   #customConfig = null;
 
   #defaultManifest = {
-    name: "AnythingLLM",
-    short_name: "AnythingLLM",
+    name: "SetChat",
+    short_name: "SetChat",
     display: "standalone",
     orientation: "portrait",
     start_url: "/",
@@ -59,21 +59,21 @@ class MetaGenerator {
       {
         tag: "title",
         props: null,
-        content: "AnythingLLM | Your personal LLM trained on anything",
+        content: "SetChat | Assistente de IA - Setpar",
       },
 
       {
         tag: "meta",
         props: {
           name: "title",
-          content: "AnythingLLM | Your personal LLM trained on anything",
+          content: "SetChat | Assistente de IA - Setpar",
         },
       },
       {
         tag: "meta",
         props: {
           description: "title",
-          content: "AnythingLLM | Your personal LLM trained on anything",
+          content: "SetChat | Assistente de IA - Setpar",
         },
       },
 
@@ -87,14 +87,14 @@ class MetaGenerator {
         tag: "meta",
         props: {
           property: "og:title",
-          content: "AnythingLLM | Your personal LLM trained on anything",
+          content: "SetChat | Assistente de IA - Setpar",
         },
       },
       {
         tag: "meta",
         props: {
           property: "og:description",
-          content: "AnythingLLM | Your personal LLM trained on anything",
+          content: "SetChat | Assistente de IA - Setpar",
         },
       },
       {
@@ -119,14 +119,14 @@ class MetaGenerator {
         tag: "meta",
         props: {
           property: "twitter:title",
-          content: "AnythingLLM | Your personal LLM trained on anything",
+          content: "SetChat | Assistente de IA - Setpar",
         },
       },
       {
         tag: "meta",
         props: {
           property: "twitter:description",
-          content: "AnythingLLM | Your personal LLM trained on anything",
+          content: "SetChat | Assistente de IA - Setpar",
         },
       },
       {
@@ -173,14 +173,13 @@ class MetaGenerator {
       htmlString = `<${tag.tag} `;
 
       if (tag.props !== null) {
-        for (const [key, value] of Object.entries(tag.props))
-          htmlString += `${key}="${value}" `;
+        for (const [key, value] of Object.entries(tag.props)) htmlString += `${key}="${value}" `;
       }
 
       if (tag.content) {
         htmlString += `>${tag.content}</${tag.tag}>`;
       } else {
-        htmlString += `>`;
+        htmlString += ">";
       }
       output.push(htmlString);
     }
@@ -198,15 +197,12 @@ class MetaGenerator {
   }
 
   async #fetchConfg() {
-    this.#log(`fetching custom meta tag settings...`);
+    this.#log("fetching custom meta tag settings...");
     const { SystemSettings } = require("../../models/systemSettings");
-    const customTitle = await SystemSettings.getValueOrFallback(
-      { label: "meta_page_title" },
-      null
-    );
+    const customTitle = await SystemSettings.getValueOrFallback({ label: "meta_page_title" }, null);
     const faviconURL = await SystemSettings.getValueOrFallback(
       { label: "meta_page_favicon" },
-      null
+      null,
     );
 
     // If nothing defined - assume defaults.
@@ -227,9 +223,7 @@ class MetaGenerator {
           return {
             tag: "title",
             props: null,
-            content:
-              customTitle ??
-              "AnythingLLM | Your personal LLM trained on anything",
+            content: customTitle ?? "SetChat | Assistente de IA - Setpar",
           };
         }
         // Override meta title
@@ -238,9 +232,7 @@ class MetaGenerator {
             tag: "meta",
             props: {
               name: "title",
-              content:
-                customTitle ??
-                "AnythingLLM | Your personal LLM trained on anything",
+              content: customTitle ?? "SetChat | Assistente de IA - Setpar",
             },
           };
         }
@@ -250,9 +242,7 @@ class MetaGenerator {
             tag: "meta",
             props: {
               property: "og:title",
-              content:
-                customTitle ??
-                "AnythingLLM | Your personal LLM trained on anything",
+              content: customTitle ?? "SetChat | Assistente de IA - Setpar",
             },
           };
         }
@@ -262,18 +252,12 @@ class MetaGenerator {
             tag: "meta",
             props: {
               property: "twitter:title",
-              content:
-                customTitle ??
-                "AnythingLLM | Your personal LLM trained on anything",
+              content: customTitle ?? "SetChat | Assistente de IA - Setpar",
             },
           };
         }
         // Override apple-touch-icon if custom favicon is set
-        if (
-          tag.tag === "link" &&
-          tag.props?.rel === "apple-touch-icon" &&
-          faviconURL
-        ) {
+        if (tag.tag === "link" && tag.props?.rel === "apple-touch-icon" && faviconURL) {
           return {
             tag: "link",
             props: {
@@ -330,11 +314,11 @@ class MetaGenerator {
       const { SystemSettings } = require("../../models/systemSettings");
       const manifestName = await SystemSettings.getValueOrFallback(
         { label: "meta_page_title" },
-        "AnythingLLM"
+        "SetChat",
       );
       const faviconURL = await SystemSettings.getValueOrFallback(
         { label: "meta_page_favicon" },
-        null
+        null,
       );
 
       let iconUrl = "/favicon.png";
@@ -364,11 +348,7 @@ class MetaGenerator {
       response.type("application/json").status(200).send(manifest).end();
     } catch (error) {
       this.#log(`error generating manifest: ${error.message}`, error);
-      response
-        .type("application/json")
-        .status(200)
-        .send(this.#defaultManifest)
-        .end();
+      response.type("application/json").status(200).send(this.#defaultManifest).end();
     }
   }
 }
