@@ -1,0 +1,177 @@
+# ==============================================================================
+# SetChat (AnythingLLM) - Portainer Stack (Docker Swarm + Traefik)
+# Deploy na VPS separada com imagem customizada do DockerHub
+# ==============================================================================
+
+services:
+  # ============================================================================
+  # SETCHAT - AnythingLLM customizado
+  # ============================================================================
+  setchat:
+    image: setupautomatizado/setchat:postgres
+    hostname: "{{.Service.Name}}.{{.Task.Slot}}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - network_public
+    volumes:
+      - setchat_storage:/app/server/storage
+      - setchat_hotdir:/app/collector/hotdir
+      - setchat_outputs:/app/collector/outputs
+    environment:
+      - NODE_ENV=production
+      - SERVER_PORT=3001
+      - STORAGE_DIR=/app/server/storage
+
+      # ========================================
+      # Auth - Configuracao Multi-User
+      # ========================================
+      - AUTH_TOKEN=9885d469bbf1dac28070f8838dc4066c86729896ef1a4340610d2fe01aad578d
+      - JWT_SECRET=fb16ab38eb86ffd48ff26e20544f4bf05a9bc4039404d98b0a05d709504cacd2
+
+      # ========================================
+      # Chat Setpar - Integracao SSO + iframe
+      # ========================================
+      - CHAT_SETPAR_ORIGIN=https://chat.setpar.setupautomatizado.com
+      - CHAT_SETPAR_JWT_SECRET=d906c563c280ae5a2aca0acbaaa140282e95991bc553ed0e162a727e4bd57dc7
+      - CHAT_SETPAR_AUTO_ENABLE_MULTI_USER=true
+      - SIMPLE_SSO_ENABLED=true
+      - CHAT_SETPAR_DEFAULT_MULTI_USER=true
+
+      # ========================================
+      # LLM Provider
+      # ========================================
+      # LLM_PROVIDER=openai
+      # OPEN_AI_KEY=sk-xxx
+      # OPEN_MODEL_PREF=gpt-4o
+
+      # ========================================
+      # Embedding
+      # ========================================
+      # EMBEDDING_ENGINE=native
+      # EMBEDDING_MODEL_PREF=Xenova/all-MiniLM-L6-v2
+
+      # ========================================
+      # Primary Application Database (PostgreSQL)
+      # ========================================
+      - DATABASE_URL=postgresql://postgres:8722e665f508d95f165f192045855e73134b5bd6bbb1d731@setchat_postgres:5432/setchat?schema=public
+
+      # Vector Database (PostgreSQL pgvector)
+      # ========================================
+      - VECTOR_DB=pgvector
+      - PGVECTOR_CONNECTION_STRING=postgresql://postgres:8722e665f508d95f165f192045855e73134b5bd6bbb1d731@setchat_postgres:5432/setchat
+      - PGVECTOR_TABLE_NAME=anythingllm_vectors
+
+    cap_add:
+      - SYS_ADMIN
+    healthcheck:
+      test: ["CMD", "bash", "/usr/local/bin/docker-healthcheck.sh"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 1m
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=network_public
+        - traefik.http.routers.setchat.rule=Host(`setchat.setpar.setupautomatizado.com`)
+        - traefik.http.routers.setchat.entrypoints=websecure
+        - traefik.http.routers.setchat.tls.certresolver=letsencryptresolver
+        - traefik.http.services.setchat.loadbalancer.server.port=3001
+        - traefik.http.routers.setchat.service=setchat
+        - traefik.http.services.setchat.loadbalancer.passHostHeader=true
+
+  # ============================================================================
+  # PostgreSQL 17 com pgvector (banco principal + embeddings)
+  # ============================================================================
+  setchat_postgres:
+    image: pgvector/pgvector:pg17
+    hostname: "{{.Service.Name}}.{{.Task.Slot}}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - network_public
+    volumes:
+      - setchat_postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=8722e665f508d95f165f192045855e73134b5bd6bbb1d731
+      - POSTGRES_DB=setchat
+      - TZ=America/Sao_Paulo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+# ==============================================================================
+# Volumes (externos - criar antes do deploy)
+# docker volume create setchat_storage
+# docker volume create setchat_hotdir
+# docker volume create setchat_outputs
+# docker volume create setchat_postgres_data
+# ==============================================================================
+volumes:
+  setchat_storage:
+    external: true
+    name: setchat_storage
+  setchat_hotdir:
+    external: true
+    name: setchat_hotdir
+  setchat_outputs:
+    external: true
+    name: setchat_outputs
+  setchat_postgres_data:
+    external: true
+    name: setchat_postgres_data
+
+# ==============================================================================
+# Networks
+# ==============================================================================
+networks:
+  network_public:
+    name: network_public
+    external: true
